@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install)",
+      "Bash(where npm:*)",
+      "Bash(where:*)",
+      "Bash(\"D:/software/NodeJS/npm.cmd\" install)",
+      "mcp__chrome-mcp-server__chrome_navigate",
+      "mcp__chrome-mcp-server__chrome_screenshot",
+      "mcp__chrome-mcp-server__chrome_console",
+      "mcp__chrome-mcp-server__chrome_inject_script",
+      "mcp__chrome-mcp-server__chrome_get_web_content",
+      "mcp__chrome-mcp-server__get_windows_and_tabs"
+    ]
+  }
+}
