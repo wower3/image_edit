@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fabric 图片编辑器</title>
+  <link rel="stylesheet" href="/src/styles/main.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+</head>
+<body>
+  <div id="app">
+    <!-- 顶部工具栏 -->
+    <header class="header">
+      <div class="header-left">
+        <div class="logo">
+          <i class="fas fa-palette"></i>
+          <span>Fabric Editor</span>
+        </div>
+      </div>
+      <div class="header-center">
+        <!-- 历史操作 -->
+        <div class="tool-group">
+          <button class="tool-btn" id="undo-btn" title="撤销 (Ctrl+Z)">
+            <i class="fas fa-undo"></i>
+          </button>
+          <button class="tool-btn" id="redo-btn" title="重做 (Ctrl+Y)">
+            <i class="fas fa-redo"></i>
+          </button>
+        </div>
+        <div class="divider"></div>
+        <!-- 缩放控制 -->
+        <div class="tool-group zoom-controls">
+          <button class="tool-btn" id="zoom-out-btn" title="缩小">
+            <i class="fas fa-search-minus"></i>
+          </button>
+          <span class="zoom-level" id="zoom-level">100%</span>
+          <button class="tool-btn" id="zoom-in-btn" title="放大">
+            <i class="fas fa-search-plus"></i>
+          </button>
+          <button class="tool-btn" id="zoom-fit-btn" title="适应屏幕">
+            <i class="fas fa-expand"></i>
+          </button>
+          <button class="tool-btn" id="zoom-reset-btn" title="重置 100%">
+            <i class="fas fa-compress"></i>
+          </button>
+        </div>
+        <div class="divider"></div>
+        <!-- 画布尺寸 -->
+        <div class="tool-group canvas-size">
+          <label>宽:</label>
+          <input type="number" id="canvas-width" value="1200" min="100" max="4000">
+          <label>高:</label>
+          <input type="number" id="canvas-height" value="800" min="100" max="4000">
+          <button class="tool-btn small" id="apply-size-btn" title="应用尺寸">
+            <i class="fas fa-check"></i>
+          </button>
+        </div>
+      </div>
+      <div class="header-right">
+        <!-- 导入导出 -->
+        <button class="action-btn" id="import-json-btn">
+          <i class="fas fa-folder-open"></i>
+          <span>打开项目</span>
+        </button>
+        <button class="action-btn" id="save-json-btn">
+          <i class="fas fa-save"></i>
+          <span>保存项目</span>
+        </button>
+        <button class="action-btn primary" id="export-btn">
+          <i class="fas fa-download"></i>
+          <span>导出</span>
+        </button>
+      </div>
+    </header>
+
+    <div class="main-container">
+      <!-- 左侧工具栏 -->
+      <aside class="toolbar-left">
+        <div class="tool-section">
+          <button class="toolbar-btn active" data-tool="select" title="选择工具 (V)">
+            <i class="fas fa-mouse-pointer"></i>
+          </button>
+          <button class="toolbar-btn" data-tool="hand" title="抓手工具 (H)">
+            <i class="fas fa-hand-paper"></i>
+          </button>
+        </div>
+        <div class="tool-section">
+          <button class="toolbar-btn" data-tool="pencil" title="画笔 (P)">
+            <i class="fas fa-pencil-alt"></i>
+          </button>
+          <button class="toolbar-btn" data-tool="eraser" title="橡皮擦 (E)">
+            <i class="fas fa-eraser"></i>
+          </button>
+        </div>
+        <div class="tool-section">
+          <button class="toolbar-btn" data-tool="rect" title="矩形 (R)">
+            <i class="fas fa-square"></i>
+          </button>
+          <button class="toolbar-btn" data-tool="circle" title="圆形 (C)">
+            <i class="fas fa-circle"></i>
+          </button>
+          <button class="toolbar-btn" data-tool="triangle" title="三角形 (T)">
+            <i class="fas fa-play fa-rotate-270"></i>
+          </button>
+          <button class="toolbar-btn" data-tool="line" title="直线 (L)">
+            <i class="fas fa-minus"></i>
+          </button>
+          <button class="toolbar-btn" data-tool="arrow" title="箭头 (A)">
+            <i class="fas fa-arrow-right"></i>
+          </button>
+        </div>
+        <div class="tool-section">
+          <button class="toolbar-btn" data-tool="text" title="文本 (X)">
+            <i class="fas fa-font"></i>
+          </button>
+          <button class="toolbar-btn" data-tool="image" title="插入图片 (I)">
+            <i class="fas fa-image"></i>
+          </button>
+        </div>
+        <div class="tool-section">
+          <button class="toolbar-btn" data-tool="crop" title="裁剪 (K)">
+            <i class="fas fa-crop-alt"></i>
+          </button>
+        </div>
+      </aside>
+
+      <!-- 画布区域 -->
+      <main class="canvas-container" id="canvas-wrapper">
+        <div class="canvas-workspace" id="canvas-workspace">
+          <canvas id="fabric-canvas"></canvas>
+        </div>
+      </main>
+
+      <!-- 右侧属性面板 -->
+      <aside class="properties-panel" id="properties-panel">
+        <!-- 无选中对象时显示 -->
+        <div class="panel-section" id="no-selection">
+          <h3>画布设置</h3>
+          <div class="property-row">
+            <label>背景颜色</label>
+            <input type="color" id="canvas-bg-color" value="#ffffff">
+          </div>
+        </div>
+
+        <!-- 选中对象时显示 -->
+        <div class="panel-section hidden" id="object-properties">
+          <h3>对象属性</h3>
+
+          <!-- 位置和尺寸 -->
+          <div class="property-group">
+            <h4>位置与尺寸</h4>
+            <div class="property-grid">
+              <div class="property-item">
+                <label>X</label>
+                <input type="number" id="prop-x">
+              </div>
+              <div class="property-item">
+                <label>Y</label>
+                <input type="number" id="prop-y">
+              </div>
+              <div class="property-item">
+                <label>宽</label>
+                <input type="number" id="prop-width">
+              </div>
+              <div class="property-item">
+                <label>高</label>
+                <input type="number" id="prop-height">
+              </div>
+              <div class="property-item">
+                <label>角度</label>
+                <input type="number" id="prop-angle" step="1">
+              </div>
+            </div>
+          </div>
+
+          <!-- 外观 -->
+          <div class="property-group">
+            <h4>外观</h4>
+            <div class="property-row">
+              <label>填充颜色</label>
+              <div class="color-input-wrapper">
+                <input type="color" id="prop-fill" value="#000000">
+                <input type="text" id="prop-fill-text" class="color-text" placeholder="#000000">
+              </div>
+            </div>
+            <div class="property-row">
+              <label>描边颜色</label>
+              <div class="color-input-wrapper">
+                <input type="color" id="prop-stroke" value="#000000">
+                <input type="text" id="prop-stroke-text" class="color-text" placeholder="#000000">
+              </div>
+            </div>
+            <div class="property-row">
+              <label>描边粗细</label>
+              <input type="number" id="prop-stroke-width" min="0" max="100" value="1">
+            </div>
+            <div class="property-row">
+              <label>虚线样式</label>
+              <select id="prop-stroke-dash">
+                <option value="">实线</option>
+                <option value="5,5">短虚线</option>
+                <option value="10,10">虚线</option>
+                <option value="15,5,5,5">点划线</option>
+              </select>
+            </div>
+            <div class="property-row">
+              <label>透明度</label>
+              <input type="range" id="prop-opacity" min="0" max="1" step="0.01" value="1">
+              <span id="prop-opacity-value">100%</span>
+            </div>
+          </div>
+
+          <!-- 阴影 -->
+          <div class="property-group">
+            <h4>阴影</h4>
+            <div class="property-row">
+              <label>启用阴影</label>
+              <input type="checkbox" id="prop-shadow-enabled">
+            </div>
+            <div class="shadow-options hidden" id="shadow-options">
+              <div class="property-row">
+                <label>颜色</label>
+                <input type="color" id="prop-shadow-color" value="#000000">
+              </div>
+              <div class="property-row">
+                <label>模糊</label>
+                <input type="number" id="prop-shadow-blur" min="0" max="100" value="10">
+              </div>
+              <div class="property-row">
+                <label>X偏移</label>
+                <input type="number" id="prop-shadow-x" value="5">
+              </div>
+              <div class="property-row">
+                <label>Y偏移</label>
+                <input type="number" id="prop-shadow-y" value="5">
+              </div>
+            </div>
+          </div>
+
+          <!-- 层级操作 -->
+          <div class="property-group">
+            <h4>层级</h4>
+            <div class="layer-buttons">
+              <button class="layer-btn" id="bring-front" title="置于顶层">
+                <i class="fas fa-layer-group"></i> 顶层
+              </button>
+              <button class="layer-btn" id="bring-forward" title="上移一层">
+                <i class="fas fa-chevron-up"></i> 上移
+              </button>
+              <button class="layer-btn" id="send-backward" title="下移一层">
+                <i class="fas fa-chevron-down"></i> 下移
+              </button>
+              <button class="layer-btn" id="send-back" title="置于底层">
+                <i class="fas fa-layer-group fa-flip-vertical"></i> 底层
+              </button>
+            </div>
+          </div>
+
+          <!-- 对齐操作 -->
+          <div class="property-group">
+            <h4>对齐</h4>
+            <div class="align-buttons">
+              <button class="align-btn" data-align="left" title="左对齐">
+                <i class="fas fa-align-left"></i>
+              </button>
+              <button class="align-btn" data-align="center-h" title="水平居中">
+                <i class="fas fa-align-center"></i>
+              </button>
+              <button class="align-btn" data-align="right" title="右对齐">
+                <i class="fas fa-align-right"></i>
+              </button>
+              <button class="align-btn" data-align="top" title="顶端对齐">
+                <i class="fas fa-align-left fa-rotate-90"></i>
+              </button>
+              <button class="align-btn" data-align="center-v" title="垂直居中">
+                <i class="fas fa-align-center fa-rotate-90"></i>
+              </button>
+              <button class="align-btn" data-align="bottom" title="底端对齐">
+                <i class="fas fa-align-right fa-rotate-90"></i>
+              </button>
+            </div>
+            <div class="distribute-buttons">
+              <button class="distribute-btn" data-distribute="horizontal" title="水平分布">
+                <i class="fas fa-arrows-alt-h"></i> 水平分布
+              </button>
+              <button class="distribute-btn" data-distribute="vertical" title="垂直分布">
+                <i class="fas fa-arrows-alt-v"></i> 垂直分布
+              </button>
+            </div>
+          </div>
+
+          <!-- 成组操作 -->
+          <div class="property-group">
+            <h4>组合</h4>
+            <div class="group-buttons">
+              <button class="group-btn" id="group-btn">
+                <i class="fas fa-object-group"></i> 成组
+              </button>
+              <button class="group-btn" id="ungroup-btn">
+                <i class="fas fa-object-ungroup"></i> 解组
+              </button>
+            </div>
+          </div>
+
+          <!-- 删除 -->
+          <div class="property-group">
+            <button class="delete-btn" id="delete-btn">
+              <i class="fas fa-trash"></i> 删除对象
+            </button>
+          </div>
+        </div>
+
+        <!-- 文本属性 -->
+        <div class="panel-section hidden" id="text-properties">
+          <h3>文本属性</h3>
+          <div class="property-group">
+            <div class="property-row">
+              <label>字体</label>
+              <select id="prop-font-family">
+                <option value="Arial">Arial</option>
+                <option value="Times New Roman">Times New Roman</option>
+                <option value="Georgia">Georgia</option>
+                <option value="Courier New">Courier New</option>
+                <option value="Verdana">Verdana</option>
+                <option value="Microsoft YaHei">微软雅黑</option>
+                <option value="SimSun">宋体</option>
+                <option value="SimHei">黑体</option>
+                <option value="KaiTi">楷体</option>
+              </select>
+            </div>
+            <div class="property-row">
+              <label>字号</label>
+              <input type="number" id="prop-font-size" min="8" max="200" value="24">
+            </div>
+            <div class="text-style-buttons">
+              <button class="style-btn" id="prop-bold" title="粗体">
+                <i class="fas fa-bold"></i>
+              </button>
+              <button class="style-btn" id="prop-italic" title="斜体">
+                <i class="fas fa-italic"></i>
+              </button>
+              <button class="style-btn" id="prop-underline" title="下划线">
+                <i class="fas fa-underline"></i>
+              </button>
+              <button class="style-btn" id="prop-linethrough" title="删除线">
+                <i class="fas fa-strikethrough"></i>
+              </button>
+            </div>
+            <div class="text-align-buttons">
+              <button class="align-btn" data-text-align="left" title="左对齐">
+                <i class="fas fa-align-left"></i>
+              </button>
+              <button class="align-btn" data-text-align="center" title="居中">
+                <i class="fas fa-align-center"></i>
+              </button>
+              <button class="align-btn" data-text-align="right" title="右对齐">
+                <i class="fas fa-align-right"></i>
+              </button>
+            </div>
+            <div class="property-row">
+              <label>行高</label>
+              <input type="number" id="prop-line-height" min="0.5" max="3" step="0.1" value="1.2">
+            </div>
+            <div class="property-row">
+              <label>背景色</label>
+              <input type="color" id="prop-text-bg" value="#ffffff">
+              <label class="checkbox-label">
+                <input type="checkbox" id="prop-text-bg-enabled"> 启用
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <!-- 图片滤镜 -->
+        <div class="panel-section hidden" id="image-filters">
+          <h3>图片滤镜</h3>
+          <div class="property-group">
+            <div class="filter-row">
+              <label>亮度</label>
+              <input type="range" id="filter-brightness" min="-1" max="1" step="0.01" value="0">
+              <span class="filter-value">0</span>
+            </div>
+            <div class="filter-row">
+              <label>对比度</label>
+              <input type="range" id="filter-contrast" min="-1" max="1" step="0.01" value="0">
+              <span class="filter-value">0</span>
+            </div>
+            <div class="filter-row">
+              <label>饱和度</label>
+              <input type="range" id="filter-saturation" min="-1" max="1" step="0.01" value="0">
+              <span class="filter-value">0</span>
+            </div>
+            <div class="filter-row">
+              <label>模糊</label>
+              <input type="range" id="filter-blur" min="0" max="1" step="0.01" value="0">
+              <span class="filter-value">0</span>
+            </div>
+            <div class="filter-row">
+              <label>噪点</label>
+              <input type="range" id="filter-noise" min="0" max="1000" step="10" value="0">
+              <span class="filter-value">0</span>
+            </div>
+            <button class="reset-filters-btn" id="reset-filters">重置滤镜</button>
+          </div>
+        </div>
+
+        <!-- 裁剪工具 -->
+        <div class="panel-section hidden" id="crop-panel">
+          <h3>图片裁剪</h3>
+          <div class="property-group">
+            <p class="hint">选择一张图片后，调整裁剪框并点击应用裁剪</p>
+            <div class="crop-buttons">
+              <button class="crop-btn" id="apply-crop">
+                <i class="fas fa-check"></i> 应用裁剪
+              </button>
+              <button class="crop-btn secondary" id="cancel-crop">
+                <i class="fas fa-times"></i> 取消
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 画笔设置 -->
+        <div class="panel-section hidden" id="brush-settings">
+          <h3>画笔设置</h3>
+          <div class="property-group">
+            <div class="property-row">
+              <label>颜色</label>
+              <input type="color" id="brush-color" value="#000000">
+            </div>
+            <div class="property-row">
+              <label>粗细</label>
+              <input type="range" id="brush-width" min="1" max="100" value="5">
+              <span id="brush-width-value">5px</span>
+            </div>
+          </div>
+        </div>
+      </aside>
+    </div>
+
+    <!-- 导出对话框 -->
+    <div class="modal hidden" id="export-modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>导出图片</h3>
+          <button class="close-btn" id="close-export-modal">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div class="export-options">
+            <div class="export-format">
+              <label>格式</label>
+              <select id="export-format">
+                <option value="png">PNG</option>
+                <option value="jpeg">JPEG</option>
+                <option value="svg">SVG</option>
+              </select>
+            </div>
+            <div class="export-quality hidden" id="export-quality-section">
+              <label>质量 (JPEG)</label>
+              <input type="range" id="export-quality" min="0.1" max="1" step="0.1" value="0.9">
+              <span id="export-quality-value">90%</span>
+            </div>
+            <div class="export-multiplier">
+              <label>分辨率倍数</label>
+              <select id="export-multiplier">
+                <option value="1">1x</option>
+                <option value="2">2x</option>
+                <option value="3">3x</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn secondary" id="cancel-export">取消</button>
+          <button class="btn primary" id="confirm-export">导出</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 隐藏的文件输入 -->
+    <input type="file" id="image-input" accept="image/*" hidden>
+    <input type="file" id="json-input" accept=".json" hidden>
+  </div>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
