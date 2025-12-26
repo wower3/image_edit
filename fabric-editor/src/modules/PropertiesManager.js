@@ -79,12 +79,32 @@ export class PropertiesManager {
       });
     }
 
-    // 虚线样式
+    // 边框样式（包括无边框）
     const strokeDash = document.getElementById('prop-stroke-dash');
     if (strokeDash) {
       strokeDash.addEventListener('change', (e) => {
-        const dashArray = e.target.value ? e.target.value.split(',').map(Number) : null;
-        this.applyPropertyChange('strokeDashArray', dashArray);
+        const obj = this.canvas.getActiveObject();
+        if (!obj) return;
+
+        if (e.target.value === 'none') {
+          // 无边框
+          obj.set({
+            stroke: 'transparent',
+            strokeWidth: 0
+          });
+        } else {
+          // 有边框 - 恢复边框颜色
+          const strokeColor = document.getElementById('prop-stroke')?.value || '#000000';
+          const strokeWidth = parseInt(document.getElementById('prop-stroke-width')?.value) || 2;
+          const dashArray = e.target.value ? e.target.value.split(',').map(Number) : null;
+          obj.set({
+            stroke: strokeColor,
+            strokeWidth: strokeWidth,
+            strokeDashArray: dashArray
+          });
+        }
+        this.canvas.renderAll();
+        this.editor.history.saveState();
       });
     }
 
@@ -342,6 +362,13 @@ export class PropertiesManager {
     });
   }
 
+  /**
+   * 判断对象是否为文本类型
+   */
+  isTextObject(obj) {
+    return obj && ['i-text', 'text', 'textbox'].includes(obj.type);
+  }
+
   setupTextProperties() {
     const fontFamily = document.getElementById('prop-font-family');
     if (fontFamily) {
@@ -357,9 +384,25 @@ export class PropertiesManager {
       });
     }
 
+    // 文字颜色
+    const textColor = document.getElementById('prop-text-color');
+    const textColorText = document.getElementById('prop-text-color-text');
+    if (textColor) {
+      textColor.addEventListener('input', (e) => {
+        this.applyTextProperty('fill', e.target.value);
+        if (textColorText) textColorText.value = e.target.value;
+      });
+    }
+    if (textColorText) {
+      textColorText.addEventListener('change', (e) => {
+        this.applyTextProperty('fill', e.target.value);
+        if (textColor) textColor.value = e.target.value;
+      });
+    }
+
     document.getElementById('prop-bold')?.addEventListener('click', (e) => {
       const obj = this.canvas.getActiveObject();
-      if (obj && obj.type === 'i-text') {
+      if (this.isTextObject(obj)) {
         const isBold = obj.fontWeight === 'bold';
         this.applyTextProperty('fontWeight', isBold ? 'normal' : 'bold');
         e.currentTarget.classList.toggle('active', !isBold);
@@ -368,7 +411,7 @@ export class PropertiesManager {
 
     document.getElementById('prop-italic')?.addEventListener('click', (e) => {
       const obj = this.canvas.getActiveObject();
-      if (obj && obj.type === 'i-text') {
+      if (this.isTextObject(obj)) {
         const isItalic = obj.fontStyle === 'italic';
         this.applyTextProperty('fontStyle', isItalic ? 'normal' : 'italic');
         e.currentTarget.classList.toggle('active', !isItalic);
@@ -377,7 +420,7 @@ export class PropertiesManager {
 
     document.getElementById('prop-underline')?.addEventListener('click', (e) => {
       const obj = this.canvas.getActiveObject();
-      if (obj && obj.type === 'i-text') {
+      if (this.isTextObject(obj)) {
         this.applyTextProperty('underline', !obj.underline);
         e.currentTarget.classList.toggle('active', !obj.underline);
       }
@@ -385,7 +428,7 @@ export class PropertiesManager {
 
     document.getElementById('prop-linethrough')?.addEventListener('click', (e) => {
       const obj = this.canvas.getActiveObject();
-      if (obj && obj.type === 'i-text') {
+      if (this.isTextObject(obj)) {
         this.applyTextProperty('linethrough', !obj.linethrough);
         e.currentTarget.classList.toggle('active', !obj.linethrough);
       }
@@ -412,11 +455,11 @@ export class PropertiesManager {
     if (textBg && textBgEnabled) {
       const applyBg = () => {
         const obj = this.canvas.getActiveObject();
-        if (obj && obj.type === 'i-text') {
+        if (this.isTextObject(obj)) {
           if (textBgEnabled.checked) {
             this.applyTextProperty('backgroundColor', textBg.value);
           } else {
-            this.applyTextProperty('backgroundColor', '');
+            this.applyTextProperty('backgroundColor', 'transparent');
           }
         }
       };
@@ -427,7 +470,14 @@ export class PropertiesManager {
 
   applyTextProperty(property, value) {
     const obj = this.canvas.getActiveObject();
-    if (obj && (obj.type === 'i-text' || obj.type === 'text')) {
+    if (this.isTextObject(obj)) {
+      // 如果修改的是占位符文本框，且不是样式属性，先清除占位符状态
+      if (obj._isPlaceholder && !['fontWeight', 'fontStyle', 'underline', 'linethrough', 'textAlign'].includes(property)) {
+        obj.set({
+          text: '',
+          _isPlaceholder: false
+        });
+      }
       obj.set(property, value);
       this.canvas.renderAll();
       this.editor.history.saveState();
@@ -454,7 +504,7 @@ export class PropertiesManager {
       // 显示文本属性面板
       const textProps = document.getElementById('text-properties');
       if (textProps) {
-        textProps.classList.toggle('hidden', obj.type !== 'i-text');
+        textProps.classList.toggle('hidden', !this.isTextObject(obj));
       }
 
       // 显示图片滤镜面板
@@ -510,7 +560,14 @@ export class PropertiesManager {
 
     const strokeDash = document.getElementById('prop-stroke-dash');
     if (strokeDash) {
-      strokeDash.value = obj.strokeDashArray ? obj.strokeDashArray.join(',') : '';
+      // 检查是否为无边框
+      if (!obj.stroke || obj.stroke === 'transparent' || obj.strokeWidth === 0) {
+        strokeDash.value = 'none';
+      } else if (obj.strokeDashArray) {
+        strokeDash.value = obj.strokeDashArray.join(',');
+      } else {
+        strokeDash.value = '';  // 实线
+      }
     }
 
     // 透明度
@@ -538,7 +595,7 @@ export class PropertiesManager {
     }
 
     // 文本属性
-    if (obj.type === 'i-text') {
+    if (this.isTextObject(obj)) {
       this.updateTextPropertyValues(obj);
     }
   }
@@ -549,6 +606,17 @@ export class PropertiesManager {
 
     const fontSize = document.getElementById('prop-font-size');
     if (fontSize) fontSize.value = obj.fontSize || 24;
+
+    // 文字颜色
+    const textColor = document.getElementById('prop-text-color');
+    const textColorText = document.getElementById('prop-text-color-text');
+    const fillColor = obj.fill || '#000000';
+    if (textColor && typeof fillColor === 'string') {
+      textColor.value = fillColor;
+    }
+    if (textColorText && typeof fillColor === 'string') {
+      textColorText.value = fillColor;
+    }
 
     document.getElementById('prop-bold')?.classList.toggle('active', obj.fontWeight === 'bold');
     document.getElementById('prop-italic')?.classList.toggle('active', obj.fontStyle === 'italic');
@@ -561,6 +629,17 @@ export class PropertiesManager {
 
     const lineHeight = document.getElementById('prop-line-height');
     if (lineHeight) lineHeight.value = obj.lineHeight || 1.2;
+
+    // 背景色
+    const textBg = document.getElementById('prop-text-bg');
+    const textBgEnabled = document.getElementById('prop-text-bg-enabled');
+    if (textBg && textBgEnabled) {
+      const hasBg = obj.backgroundColor && obj.backgroundColor !== 'transparent';
+      textBgEnabled.checked = hasBg;
+      if (hasBg) {
+        textBg.value = obj.backgroundColor;
+      }
+    }
   }
 
   applyPropertyChange(property, value) {

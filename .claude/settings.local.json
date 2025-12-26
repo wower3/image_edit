@@ -10,7 +10,9 @@
       "mcp__chrome-mcp-server__chrome_console",
       "mcp__chrome-mcp-server__chrome_inject_script",
       "mcp__chrome-mcp-server__chrome_get_web_content",
-      "mcp__chrome-mcp-server__get_windows_and_tabs"
+      "mcp__chrome-mcp-server__get_windows_and_tabs",
+      "mcp__chrome-mcp-server__chrome_get_interactive_elements",
+      "mcp__chrome-mcp-server__chrome_click_element"
     ]
   }
 }

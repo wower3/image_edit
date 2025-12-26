@@ -111,8 +111,11 @@
           </button>
         </div>
         <div class="tool-section">
-          <button class="toolbar-btn" data-tool="text" title="文本 (X)">
+          <button class="toolbar-btn" data-tool="text" title="文本框 (X)">
             <i class="fas fa-font"></i>
+          </button>
+          <button class="toolbar-btn" data-tool="bubble" title="气泡文本 (B)">
+            <i class="fas fa-comment"></i>
           </button>
           <button class="toolbar-btn" data-tool="image" title="插入图片 (I)">
             <i class="fas fa-image"></i>
@@ -196,8 +199,9 @@
               <input type="number" id="prop-stroke-width" min="0" max="100" value="1">
             </div>
             <div class="property-row">
-              <label>虚线样式</label>
+              <label>边框样式</label>
               <select id="prop-stroke-dash">
+                <option value="none">无边框</option>
                 <option value="">实线</option>
                 <option value="5,5">短虚线</option>
                 <option value="10,10">虚线</option>
@@ -332,6 +336,13 @@
             <div class="property-row">
               <label>字号</label>
               <input type="number" id="prop-font-size" min="8" max="200" value="24">
+            </div>
+            <div class="property-row">
+              <label>文字颜色</label>
+              <div class="color-input-wrapper">
+                <input type="color" id="prop-text-color" value="#000000">
+                <input type="text" id="prop-text-color-text" class="color-text" placeholder="#000000">
+              </div>
             </div>
             <div class="text-style-buttons">
               <button class="style-btn" id="prop-bold" title="粗体">
